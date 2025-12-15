@@ -56,6 +56,17 @@ td[data-tooltip]:hover::after {
 .modal-content input { padding: 8px; font-size: 14px; }
 .modal-content label { font-weight: bold; }
 .modal-buttons { display:flex; justify-content: flex-end; gap:10px; }
+
+/* Drop zone */
+#drop-zone {
+  margin-top: 10px;
+  padding: 20px;
+  border: 2px dashed #888;
+  text-align: center;
+  width: 300px;
+  transition: background 0.2s;
+}
+#drop-zone.hover { background: #f0f0f0; }
 </style>
 </head>
 <body>
@@ -72,6 +83,8 @@ td[data-tooltip]:hover::after {
   <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
   <button onclick="document.getElementById('importFile').click()">Загрузить JSON</button>
 </div>
+
+<div id="drop-zone">Или перетащите JSON файл сюда</div>
 
 <div id="diceResult"></div>
 
@@ -240,10 +253,33 @@ function exportJSON() {
   dlAnchor.click();
 }
 
-// Импорт JSON
+// Импорт JSON через input
 function importJSON(event) {
   const file = event.target.files[0];
   if (!file) return;
+  handleFile(file);
+}
+
+// Drag & Drop
+const dropZone = document.getElementById('drop-zone');
+
+dropZone.addEventListener('dragover', (event) => {
+  event.preventDefault();
+  dropZone.classList.add('hover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('hover');
+});
+
+dropZone.addEventListener('drop', (event) => {
+  event.preventDefault();
+  dropZone.classList.remove('hover');
+  const file = event.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
