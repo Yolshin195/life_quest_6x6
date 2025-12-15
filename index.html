@@ -1,302 +1,456 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Матрица действий с кубиками</title>
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f0f2f5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-}
-h2 { margin-bottom: 20px; }
-button, select {
-  padding: 8px 15px;
-  font-size: 14px;
-  margin: 5px;
-  cursor: pointer;
-}
-table { border-collapse: collapse; margin-top: 20px; background: #fff; }
-td, th { border: 1px solid #333; padding: 10px; width: 160px; text-align: center; }
-td { cursor: pointer; position: relative; }
-
-/* Подсказка для всех языков */
-td[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: 100%; left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.8);
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 5px;
-  white-space: nowrap;
-  margin-top: 5px;
-  z-index: 5;
-  font-size: 12px;
-}
-
-#diceResult { margin-top: 20px; font-size: 18px; font-weight: bold; }
-
-/* Модальное окно */
-.modal {
-  display: none; 
-  position: fixed; 
-  z-index: 10; 
-  left: 0; top: 0; width: 100%; height: 100%; 
-  overflow: auto; background-color: rgba(0,0,0,0.5);
-}
-.modal-content {
-  background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 10px; width: 350px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.modal-content input { padding: 8px; font-size: 14px; }
-.modal-content label { font-weight: bold; }
-.modal-buttons { display:flex; justify-content: flex-end; gap:10px; }
-
-/* Drop zone */
-#drop-zone {
-  margin-top: 10px;
-  padding: 20px;
-  border: 2px dashed #888;
-  text-align: center;
-  width: 300px;
-  transition: background 0.2s;
-}
-#drop-zone.hover { background: #f0f0f0; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiceMatrix Pro: Roll & Rule</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .dice-cell {
+            min-height: 80px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .dice-cell:hover {
+            transform: scale(1.03);
+            z-index: 10;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+        }
+        .dice-icon {
+            font-size: 1.5rem;
+        }
+        .drop-zone {
+            border: 2px dashed #dee2e6;
+            border-radius: 0.375rem;
+            transition: all 0.3s;
+        }
+        .drop-zone.hover {
+            border-color: #0d6efd;
+            background-color: rgba(13, 110, 253, 0.05);
+        }
+        .tooltip-inner {
+            max-width: 300px;
+            text-align: left;
+            padding: 0.5rem;
+        }
+        @media (max-width: 768px) {
+            .dice-cell {
+                min-height: 60px;
+                font-size: 0.8rem;
+            }
+            .dice-icon {
+                font-size: 1rem;
+            }
+        }
+    </style>
 </head>
-<body>
-<h2 id="mainTitle">Матрица действий с кубиками</h2>
+<body class="bg-light">
+    <div class="container py-4">
+        <div class="row justify-content-center mb-4">
+            <div class="col-lg-10">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h1 class="h4 mb-0">DiceMatrix Pro</h1>
+                            <div>
+                                <select id="languageSelect" class="form-select form-select-sm w-auto">
+                                    <option value="ru">Русский</option>
+                                    <option value="en">English</option>
+                                    <option value="th">ไทย</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button id="rollBtn" class="btn btn-success">
+                                <i class="bi bi-dice-6"></i> <span id="rollText">Roll Dice</span>
+                            </button>
+                            <button id="exportBtn" class="btn btn-outline-primary">
+                                <i class="bi bi-download"></i> <span id="exportText">Export</span>
+                            </button>
+                            <button id="importBtn" class="btn btn-outline-secondary">
+                                <i class="bi bi-upload"></i> <span id="importText">Import</span>
+                            </button>
+                            <input type="file" id="fileInput" class="d-none" accept=".json">
+                        </div>
 
-<div>
-  <button id="rollBtn" onclick="rollDice()">Бросить кубики 🎲🎲</button>
-  <select id="languageSelect" onchange="changeLanguage()">
-    <option value="ru">Русский</option>
-    <option value="en">English</option>
-    <option value="th">ไทย</option>
-  </select>
-  <button onclick="exportJSON()">Скачать JSON</button>
-  <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
-  <button onclick="document.getElementById('importFile').click()">Загрузить JSON</button>
-</div>
+                        <div id="dropZone" class="drop-zone p-3 mb-3 text-center">
+                            <p class="mb-0"><i class="bi bi-cloud-arrow-up"></i> <span id="dropText">Drop JSON file here</span></p>
+                        </div>
 
-<div id="drop-zone">Или перетащите JSON файл сюда</div>
+                        <div id="diceResult" class="alert alert-info d-none">
+                            <div class="d-flex align-items-center">
+                                <div id="diceIcons" class="me-2"></div>
+                                <div id="resultText"></div>
+                            </div>
+                        </div>
 
-<div id="diceResult"></div>
-
-<table id="actionTable">
-  <thead>
-    <tr>
-      <th id="cubeHeader">Кубик 1 \ Кубик 2</th>
-      <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
-<!-- Модальное окно -->
-<div id="modal" class="modal">
-  <div class="modal-content">
-    <label id="labelRu">Действие на русском:</label>
-    <input type="text" id="inputRu" placeholder="Русский">
-    <label id="labelEn">Действие на английском:</label>
-    <input type="text" id="inputEn" placeholder="English">
-    <label id="labelTh">Действие на тайском:</label>
-    <input type="text" id="inputTh" placeholder="ไทย">
-    <div class="modal-buttons">
-      <button id="saveBtn" onclick="saveAction()">Сохранить</button>
-      <button id="cancelBtn" onclick="closeModal()">Отмена</button>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th id="cubeHeader" style="width: 15%;">Die 1 \ Die 2</th>
+                                        <th class="text-center">1</th>
+                                        <th class="text-center">2</th>
+                                        <th class="text-center">3</th>
+                                        <th class="text-center">4</th>
+                                        <th class="text-center">5</th>
+                                        <th class="text-center">6</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="actionTable">
+                                    <!-- Table will be generated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted text-center small">
+                        <p class="mb-0">DiceMatrix Pro &copy; 2023 | <a href="#" class="text-decoration-none">Terms</a> | <a href="#" class="text-decoration-none">Privacy</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<script>
-// Переменные
-const tableBody = document.querySelector('#actionTable tbody');
-let actions = JSON.parse(localStorage.getItem('actions')) || {};
-let currentCell = null;
-let currentLanguage = document.getElementById('languageSelect').value;
+    <!-- Modal -->
+    <div class="modal fade" id="actionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Edit Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="inputRu" class="form-label">Russian</label>
+                        <input type="text" class="form-control" id="inputRu" placeholder="Действие">
+                    </div>
+                    <div class="mb-3">
+                        <label for="inputEn" class="form-label">English</label>
+                        <input type="text" class="form-control" id="inputEn" placeholder="Action">
+                    </div>
+                    <div class="mb-3">
+                        <label for="inputTh" class="form-label">Thai</label>
+                        <input type="text" class="form-control" id="inputTh" placeholder="การกระทำ">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-// Тексты интерфейса
-const interfaceText = {
-  ru: {
-    title: "Матрица действий с кубиками",
-    rollButton: "Бросить кубики 🎲🎲",
-    diceResult: "Выпало",
-    cubeHeader: "Кубик 1 \\ Кубик 2",
-    modal: { ru: "Действие на русском:", en: "Действие на английском:", th: "Действие на тайском:" },
-    save: "Сохранить",
-    cancel: "Отмена"
-  },
-  en: {
-    title: "Dice Action Matrix",
-    rollButton: "Roll Dice 🎲🎲",
-    diceResult: "Rolled",
-    cubeHeader: "Die 1 \\ Die 2",
-    modal: { ru: "Action in Russian:", en: "Action in English:", th: "Action in Thai:" },
-    save: "Save",
-    cancel: "Cancel"
-  },
-  th: {
-    title: "ตารางการกระทำลูกเต๋า",
-    rollButton: "ทอยลูกเต๋า 🎲🎲",
-    diceResult: "ผลลัพธ์",
-    cubeHeader: "ลูกเต๋า 1 \\ ลูกเต๋า 2",
-    modal: { ru: "การกระทำเป็นรัสเซีย:", en: "การกระทำเป็นอังกฤษ:", th: "การกระทำเป็นภาษาไทย:" },
-    save: "บันทึก",
-    cancel: "ยกเลิก"
-  }
-};
+    <!-- Toast -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div id="successToast" class="toast align-items-center text-white bg-success" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage">Success!</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
 
-// Создание таблицы
-for (let i = 1; i <= 6; i++) {
-  const tr = document.createElement('tr');
-  const th = document.createElement('th');
-  th.textContent = i;
-  tr.appendChild(th);
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Constants and Variables
+        const dieIcons = {
+            1: '<i class="bi bi-dice-1-fill dice-icon"></i>',
+            2: '<i class="bi bi-dice-2-fill dice-icon"></i>',
+            3: '<i class="bi bi-dice-3-fill dice-icon"></i>',
+            4: '<i class="bi bi-dice-4-fill dice-icon"></i>',
+            5: '<i class="bi bi-dice-5-fill dice-icon"></i>',
+            6: '<i class="bi bi-dice-6-fill dice-icon"></i>'
+        };
 
-  for (let j = 1; j <= 6; j++) {
-    const td = document.createElement('td');
-    td.dataset.row = i;
-    td.dataset.col = j;
-    td.addEventListener('click', () => openModal(td));
-    tr.appendChild(td);
-  }
-  tableBody.appendChild(tr);
-}
+        const interfaceText = {
+            ru: {
+                title: "Матрица действий",
+                roll: "Бросить кубики",
+                export: "Экспорт",
+                import: "Импорт",
+                drop: "Перетащите JSON файл сюда",
+                result: "Выпало",
+                modalTitle: "Редактировать действие",
+                cancel: "Отмена",
+                save: "Сохранить",
+                successSave: "Действие сохранено!",
+                successImport: "Данные успешно загружены!",
+                errorImport: "Ошибка загрузки файла",
+                cubeHeader: "Кубик 1 \\ Кубик 2"
+            },
+            en: {
+                title: "Dice Action Matrix",
+                roll: "Roll Dice",
+                export: "Export",
+                import: "Import",
+                drop: "Drop JSON file here",
+                result: "Rolled",
+                modalTitle: "Edit Action",
+                cancel: "Cancel",
+                save: "Save",
+                successSave: "Action saved!",
+                successImport: "Data imported successfully!",
+                errorImport: "Error loading file",
+                cubeHeader: "Die 1 \\ Die 2"
+            },
+            th: {
+                title: "ตารางการกระทำลูกเต๋า",
+                roll: "ทอยลูกเต๋า",
+                export: "ส่งออก",
+                import: "นำเข้า",
+                drop: "วางไฟล์ JSON ที่นี่",
+                result: "ผลลัพธ์",
+                modalTitle: "แก้ไขการกระทำ",
+                cancel: "ยกเลิก",
+                save: "บันทึก",
+                successSave: "บันทึกการกระทำแล้ว!",
+                successImport: "นำเข้าข้อมูลสำเร็จ!",
+                errorImport: "เกิดข้อผิดพลาด",
+                cubeHeader: "ลูกเต๋า 1 \\ ลูกเต๋า 2"
+            }
+        };
 
-// Изменение языка
-function changeLanguage() {
-  currentLanguage = document.getElementById('languageSelect').value;
-  updateTableLanguage();
-}
-
-// Обновление таблицы и интерфейса
-function updateTableLanguage() {
-  tableBody.querySelectorAll('td').forEach(td => {
-    const key = `${td.dataset.row}-${td.dataset.col}`;
-    const act = actions[key] || {};
-    td.textContent = act[currentLanguage] || '';
-    td.dataset.tooltip = `RU: ${act.ru || ''} | EN: ${act.en || ''} | TH: ${act.th || ''}`;
-  });
-  updateInterfaceLanguage();
-}
-
-function updateInterfaceLanguage() {
-  const lang = currentLanguage;
-  document.getElementById('mainTitle').textContent = interfaceText[lang].title;
-  document.getElementById('rollBtn').textContent = interfaceText[lang].rollButton;
-  document.getElementById('cubeHeader').textContent = interfaceText[lang].cubeHeader;
-  document.getElementById('diceResult').textContent = '';
-  
-  document.getElementById('labelRu').textContent = interfaceText[lang].modal.ru;
-  document.getElementById('labelEn').textContent = interfaceText[lang].modal.en;
-  document.getElementById('labelTh').textContent = interfaceText[lang].modal.th;
-  document.getElementById('saveBtn').textContent = interfaceText[lang].save;
-  document.getElementById('cancelBtn').textContent = interfaceText[lang].cancel;
-}
-
-// Модальное окно
-const modal = document.getElementById('modal');
-const inputRu = document.getElementById('inputRu');
-const inputEn = document.getElementById('inputEn');
-const inputTh = document.getElementById('inputTh');
-
-function openModal(cell) {
-  currentCell = cell;
-  const key = `${cell.dataset.row}-${cell.dataset.col}`;
-  const act = actions[key] || {};
-  inputRu.value = act.ru || '';
-  inputEn.value = act.en || '';
-  inputTh.value = act.th || '';
-  modal.style.display = 'block';
-  inputRu.focus();
-}
-
-function closeModal() { modal.style.display = 'none'; }
-
-function saveAction() {
-  if (!currentCell) return;
-  const key = `${currentCell.dataset.row}-${currentCell.dataset.col}`;
-  actions[key] = { ru: inputRu.value, en: inputEn.value, th: inputTh.value };
-  localStorage.setItem('actions', JSON.stringify(actions));
-  updateTableLanguage();
-  closeModal();
-}
-
-// Бросок кубиков
-function rollDice() {
-  const dice1 = Math.floor(Math.random() * 6) + 1;
-  const dice2 = Math.floor(Math.random() * 6) + 1;
-  const key = `${dice1}-${dice2}`;
-  const act = actions[key] || {};
-  const actionText = act[currentLanguage] || "Действие не задано";
-  document.getElementById('diceResult').textContent = 
-    `${interfaceText[currentLanguage].diceResult}: ${dice1} и ${dice2}. ${actionText}`;
-}
-
-// Закрытие модалки при клике вне
-window.onclick = function(event) {
-  if (event.target == modal) closeModal();
-}
-
-// Экспорт JSON
-function exportJSON() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(actions, null, 2));
-  const dlAnchor = document.createElement('a');
-  dlAnchor.setAttribute("href", dataStr);
-  dlAnchor.setAttribute("download", "actions.json");
-  dlAnchor.click();
-}
-
-// Импорт JSON через input
-function importJSON(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  handleFile(file);
-}
-
-// Drag & Drop
-const dropZone = document.getElementById('drop-zone');
-
-dropZone.addEventListener('dragover', (event) => {
-  event.preventDefault();
-  dropZone.classList.add('hover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-  dropZone.classList.remove('hover');
-});
-
-dropZone.addEventListener('drop', (event) => {
-  event.preventDefault();
-  dropZone.classList.remove('hover');
-  const file = event.dataTransfer.files[0];
-  if (file) handleFile(file);
-});
-
-function handleFile(file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const json = JSON.parse(e.target.result);
-      actions = json;
-      localStorage.setItem('actions', JSON.stringify(actions));
-      updateTableLanguage();
-      alert("Данные успешно загружены!");
-    } catch(err) {
-      alert("Ошибка при загрузке JSON: " + err);
-    }
-  };
-  reader.readAsText(file);
-}
-
-// Инициализация
-updateTableLanguage();
-</script>
+        let actions = JSON.parse(localStorage.getItem('diceMatrixActions')) || {};
+        let currentLanguage = 'en';
+        let currentCell = null;
+        
+        // DOM Elements
+        const actionTable = document.getElementById('actionTable');
+        const languageSelect = document.getElementById('languageSelect');
+        const rollBtn = document.getElementById('rollBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const diceResult = document.getElementById('diceResult');
+        const resultText = document.getElementById('resultText');
+        const diceIcons = document.getElementById('diceIcons');
+        const modal = new bootstrap.Modal(document.getElementById('actionModal'));
+        const toast = new bootstrap.Toast(document.getElementById('successToast'));
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            generateTable();
+            updateInterface();
+            loadFromLocalStorage();
+            
+            // Set default language based on browser
+            const userLang = navigator.language.substring(0, 2);
+            if (interfaceText[userLang]) {
+                currentLanguage = userLang;
+                languageSelect.value = userLang;
+            }
+        });
+        
+        // Event Listeners
+        languageSelect.addEventListener('change', () => {
+            currentLanguage = languageSelect.value;
+            updateInterface();
+        });
+        
+        rollBtn.addEventListener('click', rollDice);
+        exportBtn.addEventListener('click', exportToJSON);
+        importBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', importFromFile);
+        
+        // Drag and Drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('hover');
+        });
+        
+        ['dragleave', 'dragend'].forEach(type => {
+            dropZone.addEventListener(type, () => {
+                dropZone.classList.remove('hover');
+            });
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('hover');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                importFromFile({ target: fileInput });
+            }
+        });
+        
+        // Table Generation
+        function generateTable() {
+            actionTable.innerHTML = '';
+            
+            for (let i = 1; i <= 6; i++) {
+                const row = document.createElement('tr');
+                
+                const headerCell = document.createElement('th');
+                headerCell.className = 'text-center';
+                headerCell.textContent = i;
+                row.appendChild(headerCell);
+                
+                for (let j = 1; j <= 6; j++) {
+                    const cell = document.createElement('td');
+                    cell.className = 'dice-cell align-middle text-center';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    
+                    // Add tooltip
+                    cell.setAttribute('data-bs-toggle', 'tooltip');
+                    cell.setAttribute('data-bs-placement', 'top');
+                    
+                    cell.addEventListener('click', () => openModal(cell));
+                    row.appendChild(cell);
+                }
+                
+                actionTable.appendChild(row);
+            }
+            
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+        
+        // Modal Functions
+        function openModal(cell) {
+            currentCell = cell;
+            const key = `${cell.dataset.row}-${cell.dataset.col}`;
+            const action = actions[key] || {};
+            
+            document.getElementById('inputRu').value = action.ru || '';
+            document.getElementById('inputEn').value = action.en || '';
+            document.getElementById('inputTh').value = action.th || '';
+            document.getElementById('modalTitle').textContent = interfaceText[currentLanguage].modalTitle;
+            
+            modal.show();
+        }
+        
+        document.getElementById('saveBtn').addEventListener('click', saveAction);
+        
+        function saveAction() {
+            if (!currentCell) return;
+            
+            const key = `${currentCell.dataset.row}-${currentCell.dataset.col}`;
+            actions[key] = {
+                ru: document.getElementById('inputRu').value,
+                en: document.getElementById('inputEn').value,
+                th: document.getElementById('inputTh').value
+            };
+            
+            localStorage.setItem('diceMatrixActions', JSON.stringify(actions));
+            updateCell(currentCell);
+            modal.hide();
+            
+            // Show success toast
+            document.getElementById('toastMessage').textContent = interfaceText[currentLanguage].successSave;
+            toast.show();
+        }
+        
+        // Dice Rolling
+        function rollDice() {
+            const dice1 = Math.floor(Math.random() * 6) + 1;
+            const dice2 = Math.floor(Math.random() * 6) + 1;
+            const key = `${dice1}-${dice2}`;
+            const action = actions[key] || {};
+            
+            diceIcons.innerHTML = `${dieIcons[dice1]} ${dieIcons[dice2]}`;
+            resultText.textContent = `${interfaceText[currentLanguage].result}: ${dice1} & ${dice2}. ${action[currentLanguage] || ''}`;
+            
+            diceResult.classList.remove('d-none');
+            
+            // Highlight the cell
+            const cells = document.querySelectorAll('.dice-cell');
+            cells.forEach(cell => cell.classList.remove('table-primary'));
+            
+            const targetCell = document.querySelector(`td[data-row="${dice1}"][data-col="${dice2}"]`);
+            if (targetCell) {
+                targetCell.classList.add('table-primary');
+                targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        // Data Management
+        function exportToJSON() {
+            const dataStr = JSON.stringify(actions, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportName = `dice-matrix-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportName);
+            linkElement.click();
+        }
+        
+        function importFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    actions = json;
+                    localStorage.setItem('diceMatrixActions', JSON.stringify(actions));
+                    loadFromLocalStorage();
+                    
+                    document.getElementById('toastMessage').textContent = interfaceText[currentLanguage].successImport;
+                    toast.show();
+                } catch (error) {
+                    document.getElementById('toastMessage').textContent = interfaceText[currentLanguage].errorImport;
+                    toast.show();
+                    console.error('Error parsing JSON:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function loadFromLocalStorage() {
+            const cells = document.querySelectorAll('.dice-cell');
+            cells.forEach(cell => updateCell(cell));
+        }
+        
+        function updateCell(cell) {
+            const key = `${cell.dataset.row}-${cell.dataset.col}`;
+            const action = actions[key] || {};
+            
+            cell.textContent = action[currentLanguage] || '';
+            
+            // Update tooltip
+            const tooltipContent = `
+                <div><strong>RU:</strong> ${action.ru || '-'}</div>
+                <div><strong>EN:</strong> ${action.en || '-'}</div>
+                <div><strong>TH:</strong> ${action.th || '-'}</div>
+            `;
+            
+            if (cell._tooltip) {
+                cell._tooltip._config.title = tooltipContent;
+                cell._tooltip.setContent();
+            } else {
+                cell.setAttribute('data-bs-title', tooltipContent);
+            }
+        }
+        
+        // UI Updates
+        function updateInterface() {
+            document.querySelector('.card-header h1').textContent = interfaceText[currentLanguage].title;
+            document.getElementById('rollText').textContent = interfaceText[currentLanguage].roll;
+            document.getElementById('exportText').textContent = interfaceText[currentLanguage].export;
+            document.getElementById('importText').textContent = interfaceText[currentLanguage].import;
+            document.getElementById('dropText').textContent = interfaceText[currentLanguage].drop;
+            document.getElementById('cubeHeader').textContent = interfaceText[currentLanguage].cubeHeader;
+            document.getElementById('cancelBtn').textContent = interfaceText[currentLanguage].cancel;
+            document.getElementById('saveBtn').textContent = interfaceText[currentLanguage].save;
+            
+            // Update all cells
+            const cells = document.querySelectorAll('.dice-cell');
+            cells.forEach(cell => updateCell(cell));
+        }
+    </script>
 </body>
 </html>
